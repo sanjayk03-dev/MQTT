@@ -23,7 +23,6 @@ int value = 0;
 #define SwitchPin1 10
 #define SwitchPin2 D3
 
-#define wifiLed   16   //D0
 
 // Relay State
 //Define integer to remember the toggle state for relays
@@ -118,22 +117,17 @@ void setup() {
   pinMode(RelayPin1, OUTPUT);
   pinMode(RelayPin2, OUTPUT);
 
-  pinMode(wifiLed, OUTPUT);
+  pinMode(BUILTIN_LED, OUTPUT);
 
   pinMode(SwitchPin1, INPUT_PULLUP);
   pinMode(SwitchPin2, INPUT_PULLUP);
-  pinMode(SwitchPin3, INPUT_PULLUP);
-  pinMode(SwitchPin4, INPUT_PULLUP);
 
   //During Starting all Relays should TURN OFF
   digitalWrite(RelayPin1, HIGH);
   digitalWrite(RelayPin2, HIGH);
-  digitalWrite(RelayPin3, HIGH);
-  digitalWrite(RelayPin4, HIGH);
 
-  digitalWrite(wifiLed, HIGH);
-
-  pinMode(BUILTIN_LED, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
+  digitalWrite(BUILTIN_LED, HIGH);
+  
   Serial.begin(115200);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
