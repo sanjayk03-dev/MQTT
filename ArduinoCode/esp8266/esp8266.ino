@@ -14,6 +14,26 @@ unsigned long lastMsg = 0;
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
+// define the GPIO connected with Relays
+#define RelayPin1 5 
+#define RelayPin2 4
+
+
+// define the GPIO pin connected to switches
+#define SwitchPin1 10
+#define SwitchPin2 D3
+
+#define wifiLed   16   //D0
+
+// Relay State
+//Define integer to remember the toggle state for relays
+bool toggleState_1 = LOW; 
+bool toggleState_2 = LOW; 
+
+// Switch State
+bool SwitchState_1 = LOW;
+bool SwitchState_2 = LOW;
+
 void setup_wifi() {
 
   delay(10);
@@ -53,6 +73,18 @@ void callback(char* topic, byte* payload, unsigned int length) {
   } else {
     digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
   }
+
+  if ((char)payload[0] == '1'){
+    toggleState_1 = payload[1];
+  }
+
+  // toggleState_1 = param.asInt();
+  // if(toggleState_1 == 1){
+  //   digitalWrite(RelayPin1, LOW);
+  // }
+  // else { 
+  //   digitalWrite(RelayPin1, HIGH);
+  // }
 }
 
 void reconnect() {
@@ -66,7 +98,7 @@ void reconnect() {
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish("/sanjay", "hello world");
+      client.publish("/sanjay", "Connected!");
       // ... and resubscribe
       client.subscribe("/sanjay");
     } else {
@@ -80,6 +112,27 @@ void reconnect() {
 }
 
 void setup() {
+  Serial.begin(115200);
+  delay(100);
+  
+  pinMode(RelayPin1, OUTPUT);
+  pinMode(RelayPin2, OUTPUT);
+
+  pinMode(wifiLed, OUTPUT);
+
+  pinMode(SwitchPin1, INPUT_PULLUP);
+  pinMode(SwitchPin2, INPUT_PULLUP);
+  pinMode(SwitchPin3, INPUT_PULLUP);
+  pinMode(SwitchPin4, INPUT_PULLUP);
+
+  //During Starting all Relays should TURN OFF
+  digitalWrite(RelayPin1, HIGH);
+  digitalWrite(RelayPin2, HIGH);
+  digitalWrite(RelayPin3, HIGH);
+  digitalWrite(RelayPin4, HIGH);
+
+  digitalWrite(wifiLed, HIGH);
+
   pinMode(BUILTIN_LED, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
   Serial.begin(115200);
   setup_wifi();
@@ -95,6 +148,7 @@ void loop() {
   client.loop();
 
   unsigned long now = millis();
+  manual_control(); //Manual Switch Control  
   // if (now - lastMsg > 2000) {
   //   lastMsg = now;
   //   ++value;
