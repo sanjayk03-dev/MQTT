@@ -3,38 +3,31 @@
 
 // Update these with values suitable for your network.
 
-const char* ssid = "vivo";
-const char* password = "sanjayK03";
-const char* mqtt_server = "broker.mqttdashboard.com";
+const char *ssid = "vivo 1819";
+const char *password = "sanjayk03";
+const char *mqtt_server = "broker.mqttdashboard.com";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 unsigned long lastMsg = 0;
-#define MSG_BUFFER_SIZE	(50)
+#define MSG_BUFFER_SIZE (50)
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
 // define the GPIO connected with Relays
-#define RelayPin1 5 
-#define RelayPin2 4
-
+#define RelayPin1 D0
 
 // define the GPIO pin connected to switches
-#define SwitchPin1 10
-#define SwitchPin2 D3
-
+#define SwitchPin1 D1
 
 // Relay State
-//Define integer to remember the toggle state for relays
-bool toggleState_1 = LOW; 
-bool toggleState_2 = LOW; 
+// Define integer to remember the toggle state for relays
+int toggleState_1 = 0;
 
 // Switch State
-bool SwitchState_1 = LOW;
-bool SwitchState_2 = LOW;
+int SwitchState_1 = 0;
 
-void setup_wifi() {
-
+void setup_wifi(){
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
@@ -44,7 +37,7 @@ void setup_wifi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED){
     delay(500);
     Serial.print(".");
   }
@@ -57,49 +50,51 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
+void callback(char *topic, byte *payload, unsigned int length){
+  Serial.print("\n\nMessage arrived [");
   Serial.print(topic);
-  Serial.print("] ");
-  for (int i = 0; i < length; i++) {
+  Serial.print("] : ");
+  for (int i = 0; i < length; i++){
     Serial.print((char)payload[i]);
   }
   Serial.println();
-  
-  // Switch on the LED if an 1 was received as first character
-  if ((char)payload[0] == '1' && (char)payload[2] == 'n') {
-    digitalWrite(BUILTIN_LED, LOW);   // Turn the LED on (Note that LOW is the voltage level
+
+  // When App button is pushed - switch the state
+  if ((char)payload[1] == '1'){
+    toggleState_1 = HIGH;
+    Serial.print("\nToggleState is ");
+    Serial.println(String(toggleState_1));
+  }else{
+    toggleState_1 = LOW;
+    Serial.print("\nToggleState is ");
+    Serial.println(String(toggleState_1));
+  }
+  if (toggleState_1 == HIGH){
+    digitalWrite(RelayPin1, LOW);
+    Serial.print("RelayPin1 is LOW");
   } else {
-    digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
+    digitalWrite(RelayPin1, HIGH);
+    Serial.print("RelayPin1 is HIGH");
   }
-
-  if ((char)payload[0] == '1'){
-    toggleState_1 = payload[1];
-  }
-
-  // toggleState_1 = param.asInt();
-  // if(toggleState_1 == 1){
-  //   digitalWrite(RelayPin1, LOW);
-  // }
-  // else { 
-  //   digitalWrite(RelayPin1, HIGH);
-  // }
 }
 
-void reconnect() {
+void reconnect(){
   // Loop until we're reconnected
-  while (!client.connected()) {
+  while (!client.connected())
+  {
     Serial.print("Attempting MQTT connection...");
     // Create a random client ID
     String clientId = "ESP8266Client-";
     clientId += String(random(0xffff), HEX);
     // Attempt to connect
-    if (client.connect(clientId.c_str())) {
-      Serial.println("connected");
-      // Once connected, publish an announcement...
-      client.publish("/sanjay", "Connected!");
-      // ... and resubscribe
+    if (client.connect(clientId.c_str()))
+    {
+      Serial.println("\nconnected");
+      //Once connected, subscribe to the topic.
       client.subscribe("/sanjay");
+      // And publish an announcement...
+      client.publish("/sanjay", "Connected!");
+      
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -110,45 +105,55 @@ void reconnect() {
   }
 }
 
-void setup() {
+void setup(){
   Serial.begin(115200);
   delay(100);
-  
+
   pinMode(RelayPin1, OUTPUT);
-  pinMode(RelayPin2, OUTPUT);
 
   pinMode(BUILTIN_LED, OUTPUT);
 
   pinMode(SwitchPin1, INPUT_PULLUP);
-  pinMode(SwitchPin2, INPUT_PULLUP);
 
-  //During Starting all Relays should TURN OFF
+  // During Starting all Relays should TURN OFF
   digitalWrite(RelayPin1, HIGH);
-  digitalWrite(RelayPin2, HIGH);
 
   digitalWrite(BUILTIN_LED, HIGH);
-  
+
   Serial.begin(115200);
+
   setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 }
 
-void loop() {
+void manual_control() {
+  // Read the state of switch 1
+  int newSwitchState_1 = digitalRead(SwitchPin1); //0 if On
+  Serial.print("\ndigitalRead(SwitchPin1) : ");
+  Serial.print(newSwitchState_1);
+  if ((int)newSwitchState_1 != (int)SwitchState_1) {
+    SwitchState_1 = newSwitchState_1;
 
-  if (!client.connected()) {
+    // Publish the updated switch state to the MQTT topic
+    String message = String('1'+SwitchState_1);
+    Serial.print("\nString('1'+SwitchState_1): ");
+    Serial.print(String('1'+SwitchState_1));
+    // client.publish("/sanjay", message.c_str());
+  }
+}
+
+
+void loop(){
+  // Read the state of switch 1
+  SwitchState_1 = digitalRead(SwitchPin1);
+
+  if (!client.connected())
+  {
     reconnect();
   }
   client.loop();
 
-  unsigned long now = millis();
-  manual_control(); //Manual Switch Control  
-  // if (now - lastMsg > 2000) {
-  //   lastMsg = now;
-  //   ++value;
-  //   snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
-  //   Serial.print("Publish message: ");
-  //   Serial.println(msg);
-  //   client.publish("/sanjay", msg);
-  // }
+  manual_control(); // Manual Switch Control
+  delay(2000);
 }

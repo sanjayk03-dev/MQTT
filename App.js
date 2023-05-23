@@ -35,6 +35,7 @@ export default function MQTT() {
   }, []);
 
   function onMessage(message) {
+    console.log('\n\nReceived Message: ',message.payloadString);
     //console.log("\nMessage: ", message);//{"destinationName": "/sanjay", "duplicate": false, "payloadBytes": [111, 102, 102], "payloadString": "off", "qos": 0, "retained": false, "topic": "/sanjay"}
     if (message.destinationName === topic) {
       // console.log("\nReceived Message: ", message.payloadString);
@@ -58,16 +59,16 @@ export default function MQTT() {
 
   function publishHandler(c, n) {
     if (n == '1') {
-      if (msg[1] === '1On') {
-        var message = new Paho.Message('1Off');//{"destinationName": "/sanjay", "duplicate": false, "payloadBytes": [72, 101, 108, 108, 111, 111, 111, 111], "payloadString": "Helloooo", "qos": 0, "retained": false, "topic": "/sanjay"}
+      if (msg[1] === '11') {
+        var message = new Paho.Message('10');//{"destinationName": "/sanjay", "duplicate": false, "payloadBytes": [72, 101, 108, 108, 111, 111, 111, 111], "payloadString": "Helloooo", "qos": 0, "retained": false, "topic": "/sanjay"}
       } else {
-        var message = new Paho.Message('1On');
+        var message = new Paho.Message('11');
       }
     } else {
-      if (msg[2] === '2On') {
-        var message = new Paho.Message('2Off');//{"destinationName": "/sanjay", "duplicate": false, "payloadBytes": [72, 101, 108, 108, 111, 111, 111, 111], "payloadString": "Helloooo", "qos": 0, "retained": false, "topic": "/sanjay"}
+      if (msg[2] === '21') {
+        var message = new Paho.Message('20');//{"destinationName": "/sanjay", "duplicate": false, "payloadBytes": [72, 101, 108, 108, 111, 111, 111, 111], "payloadString": "Helloooo", "qos": 0, "retained": false, "topic": "/sanjay"}
       } else {
-        var message = new Paho.Message('2On');
+        var message = new Paho.Message('21');
       }
     }
 
@@ -95,7 +96,7 @@ export default function MQTT() {
               <Image source={require('./assets/power.png')} style={styles.power} />
             </View>
             <Text style={styles.light}>Light 1</Text>
-            <Text style={{ color: '#434', fontSize: 13, paddingTop: 3 }}>{msg[1].slice(1)}</Text>
+            <Text style={{ color: '#434', fontSize: 13, paddingTop: 3 }}>{msg[1]}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.buttonContainer}
@@ -106,7 +107,7 @@ export default function MQTT() {
               <Image source={require('./assets/power.png')} style={styles.power} />
             </View>
             <Text style={styles.light}>Light 2</Text>
-            <Text style={{ color: '#434', fontSize: 13, paddingTop: 3 }}>{msg[2].slice(1)}</Text>
+            <Text style={{ color: '#434', fontSize: 13, paddingTop: 3 }}>{msg[2]}</Text>
           </TouchableOpacity>
         </View>
       </View>
