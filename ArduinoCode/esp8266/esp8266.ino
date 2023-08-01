@@ -1,9 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
-// Update these with values suitable for your network.
-
-const char *ssid = "vivo 1819";
+const char *ssid = "Vivo V15";
 const char *password = "sanjayk03";
 const char *mqtt_server = "broker.mqttdashboard.com";
 
@@ -14,87 +12,79 @@ unsigned long lastMsg = 0;
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
-// define the GPIO connected with Relays
-#define RelayPin1 D0
+const int RelayPin1 = D3;
 
-// define the GPIO pin connected to switches
-#define SwitchPin1 D1
+#define SwitchPin1 D5
 
-// Relay State
-// Define integer to remember the toggle state for relays
+bool SwitchState;
+
 int toggleState_1 = 0;
 
-// Switch State
-int SwitchState_1 = 0;
+int wifiFlag = 0;
+bool wifiState;
 
-void setup_wifi(){
+void setup_wifi() {
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
-
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED){
+  unsigned long startTime = millis();
+  while (WiFi.status() != WL_CONNECTED && (millis() - startTime) < 10000) {
     delay(500);
     Serial.print(".");
+    digitalWrite(BUILTIN_LED, !digitalRead(BUILTIN_LED)); 
   }
-
-  randomSeed(micros());
-
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("");
+    Serial.println("WiFi connected");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
+    digitalWrite(BUILTIN_LED, HIGH);
+  } else {
+    Serial.println("");
+    Serial.println("WiFi connection failed. Check your credentials or signal.");
+    digitalWrite(BUILTIN_LED, LOW);  // Turn off the LED when connection failed
+  }
 }
 
-void callback(char *topic, byte *payload, unsigned int length){
+void callback(char *topic, byte *payload, unsigned int length) {
   Serial.print("\n\nMessage arrived [");
   Serial.print(topic);
   Serial.print("] : ");
-  for (int i = 0; i < length; i++){
+  for (int i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
   }
   Serial.println();
 
-  // When App button is pushed - switch the state
-  if ((char)payload[1] == '1'){
-    toggleState_1 = HIGH;
-    Serial.print("\nToggleState is ");
-    Serial.println(String(toggleState_1));
-  }else{
-    toggleState_1 = LOW;
-    Serial.print("\nToggleState is ");
-    Serial.println(String(toggleState_1));
-  }
-  if (toggleState_1 == HIGH){
-    digitalWrite(RelayPin1, LOW);
-    Serial.print("RelayPin1 is LOW");
-  } else {
-    digitalWrite(RelayPin1, HIGH);
-    Serial.print("RelayPin1 is HIGH");
+  if (payload[0] == '1') {
+    toggleState_1 = 1;
+    relayOnOff(1);
+  } else if (payload[0] == '0') {
+    toggleState_1 = 0;
+    relayOnOff(1);
   }
 }
 
-void reconnect(){
+void reconnect() {
+  unsigned long startTime = millis();
+
   // Loop until we're reconnected
-  while (!client.connected())
-  {
+  while (!client.connected() && (millis() - startTime) < 10000) {
     Serial.print("Attempting MQTT connection...");
     // Create a random client ID
     String clientId = "ESP8266Client-";
     clientId += String(random(0xffff), HEX);
     // Attempt to connect
-    if (client.connect(clientId.c_str()))
-    {
+    if (client.connect(clientId.c_str())) {
       Serial.println("\nconnected");
-      //Once connected, subscribe to the topic.
+      digitalWrite(BUILTIN_LED, HIGH);
+      // Once connected, subscribe to the topic.
       client.subscribe("/sanjay");
       // And publish an announcement...
-      client.publish("/sanjay", "Connected!");
-      
+      client.publish("/sanjay", String(toggleState_1).c_str());
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -105,55 +95,70 @@ void reconnect(){
   }
 }
 
-void setup(){
-  Serial.begin(115200);
-  delay(100);
+void relayOnOff(int relay) {
 
+  switch (relay) {
+    case 1:
+      if (toggleState_1 == 1) {
+        digitalWrite(RelayPin1, LOW);  // turn on relay 1
+        Serial.println("Device1 ON");
+      } else {
+        digitalWrite(RelayPin1, HIGH);  // turn off relay 1
+        Serial.println("Device1 OFF");
+      }
+      delay(100);
+      break;
+    default:
+      break;
+  }
+}
+
+void with_internet() {
+  // Serial.print("\nwith internet");
+  if (SwitchState != digitalRead(SwitchPin1)) {
+    SwitchState = digitalRead(SwitchPin1);
+    toggleState_1 = !toggleState_1;
+    client.publish("/sanjay", String(toggleState_1).c_str());
+    relayOnOff(1);
+  }
+}
+void without_internet() {
+  // Serial.print("Without internet");
+  if (SwitchState != digitalRead(SwitchPin1)) {
+    SwitchState = digitalRead(SwitchPin1);
+    toggleState_1 = !toggleState_1;
+    relayOnOff(1);
+  }
+}
+
+void setup() {
+  Serial.begin(9600);
   pinMode(RelayPin1, OUTPUT);
-
+  digitalWrite(RelayPin1, LOW);
   pinMode(BUILTIN_LED, OUTPUT);
-
+  digitalWrite(BUILTIN_LED, LOW);
   pinMode(SwitchPin1, INPUT_PULLUP);
-
-  // During Starting all Relays should TURN OFF
-  digitalWrite(RelayPin1, HIGH);
-
-  digitalWrite(BUILTIN_LED, HIGH);
-
-  Serial.begin(115200);
-
+  SwitchState = digitalRead(SwitchPin1);
   setup_wifi();
+  // digitalWrite(RelayPin1, HIGH);
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 }
 
-void manual_control() {
-  // Read the state of switch 1
-  int newSwitchState_1 = digitalRead(SwitchPin1); //0 if On
-  Serial.print("\ndigitalRead(SwitchPin1) : ");
-  Serial.print(newSwitchState_1);
-  if ((int)newSwitchState_1 != (int)SwitchState_1) {
-    SwitchState_1 = newSwitchState_1;
-
-    // Publish the updated switch state to the MQTT topic
-    String message = String('1'+SwitchState_1);
-    Serial.print("\nString('1'+SwitchState_1): ");
-    Serial.print(String('1'+SwitchState_1));
-    // client.publish("/sanjay", message.c_str());
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("\nWiFi Not Connected");
+    setup_wifi();
+    digitalWrite(BUILTIN_LED, LOW);
+    without_internet();
+    delay(2000);
+  } else {
+    Serial.println("\nWiFi Connected");
+    if (!client.connected()) {
+      reconnect();
+    }
+    client.loop();
+    with_internet();
+    delay(2000);
   }
-}
-
-
-void loop(){
-  // Read the state of switch 1
-  SwitchState_1 = digitalRead(SwitchPin1);
-
-  if (!client.connected())
-  {
-    reconnect();
-  }
-  client.loop();
-
-  manual_control(); // Manual Switch Control
-  delay(2000);
 }

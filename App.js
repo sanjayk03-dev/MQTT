@@ -1,77 +1,55 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, SafeAreaView, Image } from 'react-native';
+import React, {useEffect, useState} from 'react';
+import {StyleSheet, Text, TouchableOpacity, View, SafeAreaView, Image} from 'react-native';
 import Paho from 'paho-mqtt';
 
-const client = new Paho.Client(
-  "broker.mqttdashboard.com",
-  Number(8000),
-  `clientID_${parseInt(Math.random() * 10000)}`
-);
+const client = new Paho.Client('broker.mqttdashboard.com', Number(8000), `clientID_${parseInt(Math.random() * 10000)}`);
 
 export default function MQTT() {
-
-  const topic = "/sanjay";
-  const [msg, setMsg] = useState({ '1': '1', '2': '2' });
+  const topic = '/sanjay';
+  const [msg, setMsg] = useState('0');
 
   useEffect(() => {
     client.connect({
       // userName: 'iQube',
       // password: 'iq',
       onSuccess: () => {
-        console.log("Connected!");
+        console.log('Connected!');
         client.onMessageArrived = onMessage;
         client.onConnectionLost = onConnectionLost;
         try {
           client.subscribe(topic);
           console.log('\nSubscribed:', topic);
         } catch (err) {
-          console.log("\nError Subscribing: ", err);
+          console.log('\nError Subscribing: ', err);
         }
       },
-      onFailure: (errorMessage) => {
-        console.log("Failed to connect: ", errorMessage);
-      }
+      onFailure: errorMessage => {
+        console.log('Failed to connect: ', errorMessage);
+      },
     });
   }, []);
 
   function onMessage(message) {
-    console.log('\n\nReceived Message: ',message.payloadString);
+    console.log('\n\nReceived Message: ', message.payloadString);
     //console.log("\nMessage: ", message);//{"destinationName": "/sanjay", "duplicate": false, "payloadBytes": [111, 102, 102], "payloadString": "off", "qos": 0, "retained": false, "topic": "/sanjay"}
     if (message.destinationName === topic) {
       // console.log("\nReceived Message: ", message.payloadString);
-      setMsg(prevMsg => {
-        const newMsg = { ...prevMsg };
-        if (message.payloadString[0] === '1') {
-          newMsg['1'] = message.payloadString;
-        } else if (message.payloadString[0] === '2') {
-          newMsg['2'] = message.payloadString;
-        }
-        return newMsg;
-      });
+      setMsg(message.payloadString);
     }
   }
 
   function onConnectionLost(responseObject) {
     if (responseObject.errorCode !== 0) {
-      console.log("\nonConnectionLost:" + responseObject.errorMessage);
+      console.log('\nonConnectionLost:' + responseObject.errorMessage);
     }
   }
 
-  function publishHandler(c, n) {
-    if (n == '1') {
-      if (msg[1] === '11') {
-        var message = new Paho.Message('10');//{"destinationName": "/sanjay", "duplicate": false, "payloadBytes": [72, 101, 108, 108, 111, 111, 111, 111], "payloadString": "Helloooo", "qos": 0, "retained": false, "topic": "/sanjay"}
-      } else {
-        var message = new Paho.Message('11');
-      }
-    } else {
-      if (msg[2] === '21') {
-        var message = new Paho.Message('20');//{"destinationName": "/sanjay", "duplicate": false, "payloadBytes": [72, 101, 108, 108, 111, 111, 111, 111], "payloadString": "Helloooo", "qos": 0, "retained": false, "topic": "/sanjay"}
-      } else {
-        var message = new Paho.Message('21');
-      }
+  function publishHandler(c) {
+    if (msg == '0') {
+      var message = new Paho.Message('1');
+    } else if (msg == '1') {
+      var message = new Paho.Message('0');
     }
-
     // console.log('Publish Message: ', message);
     message.destinationName = topic;
     c.send(message);
@@ -82,37 +60,27 @@ export default function MQTT() {
         <Text style={styles.TitleText}>Welcome</Text>
       </View>
       <View style={styles.bodyContainer}>
-        <View style={styles.item1}>
-          <Text style={{ color: '#434242', fontSize: 18, fontFamily: 'Roboto-Medium' }}>Smart Switch Controller</Text>
+        <View style={styles.subTitleContainer}>
+          <Text style={{color: '#434242', fontSize: 18, fontFamily: 'Roboto-Medium'}}>Smart Switch Controller</Text>
         </View>
-        <Text >Topic: {topic}</Text>
+        {/* <Text>Topic: {topic}</Text> */}
         <View style={styles.switchContainer}>
-          <TouchableOpacity
-            style={styles.buttonContainer}
-            onPress={() => publishHandler(client, '1')}
-          >
-            <View style={styles.imgcontainer}>
-              <Image source={require('./assets/lightbulb.png')} style={styles.image} />
-              <Image source={require('./assets/power.png')} style={styles.power} />
-            </View>
+          <TouchableOpacity style={styles.buttonContainer} onPress={() => publishHandler(client)}>
+            {/* <Image source={require('./assets/lightbulb.png')} style={styles.image} /> */}
+            <Image source={require('./assets/power.png')} style={styles.power} />
+          </TouchableOpacity>
+          <View style={styles.detailContainer}>
             <Text style={styles.light}>Light 1</Text>
-            <Text style={{ color: '#434', fontSize: 13, paddingTop: 3 }}>{msg[1]}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.buttonContainer}
-            onPress={() => publishHandler(client, '2')}
-          >
-            <View style={styles.imgcontainer}>
-              <Image source={require('./assets/lightbulb.png')} style={styles.image} />
-              <Image source={require('./assets/power.png')} style={styles.power} />
-            </View>
-            <Text style={styles.light}>Light 2</Text>
-            <Text style={{ color: '#434', fontSize: 13, paddingTop: 3 }}>{msg[2]}</Text>
-          </TouchableOpacity>
+            {msg * 1 ? (
+              <Text style={{color: '#434', fontSize: 22, paddingTop: 3}}>On</Text>
+            ) : (
+              <Text style={{color: '#434', fontSize: 22, paddingTop: 3}}>Off</Text>
+            )}
+          </View>
         </View>
       </View>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -120,7 +88,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#EEF3FA'
+    backgroundColor: '#EEF3FA',
   },
   TitleContainer: {
     width: '90%',
@@ -138,45 +106,48 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
   },
-  item1: {
+  subTitleContainer: {
     width: '90%',
     height: '10%',
   },
-  imgcontainer: {
-    flexDirection: 'row',
-    width: '100%',
-    height: '40%',
-    justifyContent: 'space-between',
-  },
   power: {
-    width: '20%',
-    height: '90%',
     display: 'flex',
-    resizeMode: 'contain'
+    resizeMode: 'contain',
   },
   light: {
     color: '#000',
     fontFamily: 'Roboto-Medium',
-    fontSize: 18,
-    paddingTop: 8
+    fontSize: 27,
+    paddingTop: 8,
   },
   switchContainer: {
-    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     width: '95%',
     height: '80%',
   },
   buttonContainer: {
+    elevation: 4,
     backgroundColor: '#E7EEF5',
-    width: '44%',
-    height: '25%',
-    borderRadius: 25,
-    padding: '4%',
-    margin: '3%'
+    width: '43%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '30%',
+    borderRadius: 77,
+    margin: '3%',
   },
   image: {
     width: '30%',
     height: '85%',
     display: 'flex',
-    resizeMode: 'contain'
+    resizeMode: 'contain',
   },
-})
+  detailContainer: {
+    // backgroundColor: 'grey',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '20%',
+    padding: '2%',
+  },
+});
